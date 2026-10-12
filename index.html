@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -26,7 +25,6 @@
       padding: 12px 8px 40px;
     }
 
-    /* Website Logo */
     .brand {
       display: flex;
       justify-content: center;
@@ -52,7 +50,6 @@
       font-size: 65%;
     }
 
-    /* Introduction */
     .intro {
       text-align: center;
       font-size: clamp(17px, 3.6vw, 24px);
@@ -60,7 +57,6 @@
       margin: 0 auto 18px;
     }
 
-    /* Disclaimer */
     .disclaimer {
       background: #ff5055;
       color: white;
@@ -84,7 +80,6 @@
       display: inline;
     }
 
-    /* Updated Date */
     .updated {
       text-align: center;
       color: #4b9b79;
@@ -92,7 +87,6 @@
       margin: 18px 0 20px;
     }
 
-    /* Green Result Heading */
     .result-title {
       background: #30c69a;
       color: white;
@@ -103,7 +97,6 @@
       margin: 0 6px;
     }
 
-    /* Results Table */
     table {
       width: calc(100% - 12px);
       margin: 0 6px;
@@ -174,9 +167,9 @@
       font-weight: 500;
       line-height: 1.1;
       color: #080808;
+      overflow-wrap: anywhere;
     }
 
-    /* Floating Chat Icon */
     .chat-bubble {
       position: fixed;
       right: 18px;
@@ -211,7 +204,6 @@
       border-radius: 50%;
     }
 
-    /* Refresh Button */
     .refresh {
       position: fixed;
       right: 29px;
@@ -280,20 +272,20 @@
       with all applicable laws in their jurisdiction.
 
       <span class="extra-text">
-        This page is a visual demonstration.
+        This page displays published results from its configured
+        data source.
       </span>
 
       <a href="#" id="readMore">Read More...</a>
     </section>
 
-    <p class="updated">
-      Updated: September 30, 2026, 20:51:23 IST.
+    <p class="updated" id="updatedText">
+      Updated: Demo results
     </p>
 
     <section>
-      <div class="result-title">
-        Gali Satta Result of September 30, 2026 &amp;
-        September 29, 2026
+      <div class="result-title" id="resultTitle">
+        Gali Satta Result
       </div>
 
       <table>
@@ -306,8 +298,8 @@
         <thead>
           <tr>
             <th>Regional Offline Draw Results</th>
-            <th>Tue.<br>29th</th>
-            <th>Wed.<br>30th</th>
+            <th id="dayOneHeading">Tue.<br>29th</th>
+            <th id="dayTwoHeading">Wed.<br>30th</th>
           </tr>
         </thead>
 
@@ -372,8 +364,8 @@
 
       <div class="chart-note" id="record-chart">
         <strong>Record Chart</strong><br>
-        Historical chart demo. Connect a verified data source
-        before publishing updated results.
+        Historical chart demo. Results shown depend on the
+        published data available in the database.
       </div>
     </section>
   </main>
@@ -392,7 +384,6 @@
 
     readMore.addEventListener("click", function(event) {
       event.preventDefault();
-
       disclaimer.classList.toggle("expanded");
 
       readMore.textContent =
@@ -408,104 +399,243 @@
       }
     );
   </script>
-  
-<script type="module">
-  import { initializeApp, getApp, getApps } from
-    "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
 
-  import {
-    getFirestore,
-    collection,
-    getDocs,
-    query,
-    orderBy
-  } from
-    "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+  <script type="module">
+    import { initializeApp, getApps, getApp } from
+      "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBzbbDq388GcoGyFVE-EmZk3flKgT13tZw",
-    authDomain: "satta-result-4a7a5.firebaseapp.com",
-    projectId: "satta-result-4a7a5",
-    storageBucket: "satta-result-4a7a5.firebasestorage.app",
-    messagingSenderId: "264282820868",
-    appId: "1:264282820868:web:c39a794e65c5be0e7c0051"
-  };
+    import {
+      getFirestore,
+      collection,
+      getDocs,
+      query,
+      orderBy
+    } from
+      "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 
-  const app = getApps().length
-    ? getApp()
-    : initializeApp(firebaseConfig);
+    const firebaseConfig = {
+      apiKey: "AIzaSyBzbbDq388GcoGyFVE-EmZk3flKgT13tZw",
+      authDomain: "satta-result-4a7a5.firebaseapp.com",
+      projectId: "satta-result-4a7a5",
+      storageBucket: "satta-result-4a7a5.firebasestorage.app",
+      messagingSenderId: "264282820868",
+      appId: "1:264282820868:web:c39a794e65c5be0e7c0051"
+    };
 
-  const db = getFirestore(app);
-  const resultsBody = document.getElementById("resultsBody");
+    const app = getApps().length
+      ? getApp()
+      : initializeApp(firebaseConfig);
 
-  async function loadResults() {
-    try {
-      const snapshot = await getDocs(
-        query(collection(db, "results"), orderBy("date", "desc"))
-      );
+    const db = getFirestore(app);
+    const resultsBody = document.getElementById("resultsBody");
 
-      if (snapshot.empty || !resultsBody) return;
+    const markets = [
+      { name: "DESAWAR", time: "05:00 AM" },
+      { name: "SHRI GANESH", time: "04:30 PM" },
+      { name: "FARIDABAD", time: "06:00 PM" },
+      { name: "GHAZIABAD", time: "09:55 PM" }
+    ];
 
-      const latestByMarket = new Map();
+    function parseDate(dateString) {
+      const parts = dateString.split("-").map(Number);
 
-      snapshot.forEach((item) => {
-        const data = item.data();
+      if (parts.length !== 3 || parts.some(Number.isNaN)) {
+        return null;
+      }
 
-        if (!data.market || !data.date || data.result == null) return;
+      const date = new Date(parts[0], parts[1] - 1, parts[2]);
 
-        if (!latestByMarket.has(data.market)) {
-          latestByMarket.set(data.market, data);
-        }
-      });
+      if (
+        date.getFullYear() !== parts[0] ||
+        date.getMonth() !== parts[1] - 1 ||
+        date.getDate() !== parts[2]
+      ) {
+        return null;
+      }
 
-      const times = {
-        "DESAWAR": "05:00 AM",
-        "SHRI GANESH": "04:30 PM",
-        "FARIDABAD": "06:00 PM",
-        "GHAZIABAD": "09:55 PM"
-      };
-
-      resultsBody.replaceChildren();
-
-      latestByMarket.forEach((data, market) => {
-        const row = document.createElement("tr");
-        const infoCell = document.createElement("td");
-        const name = document.createElement("div");
-        const meta = document.createElement("div");
-        const time = document.createElement("span");
-        const link = document.createElement("a");
-        const dateCell = document.createElement("td");
-        const resultCell = document.createElement("td");
-
-        name.className = "market-name";
-        name.textContent = market;
-
-        meta.className = "market-info";
-        time.textContent = "at " + (times[market] || "--");
-        link.className = "record-link";
-        link.href = "chart.html";
-        link.textContent = "Record Chart";
-
-        meta.append(time, link);
-        infoCell.append(name, meta);
-
-        dateCell.className = "number";
-        dateCell.textContent = data.result;
-
-        resultCell.className = "number";
-        resultCell.textContent = data.date;
-
-        row.append(infoCell, dateCell, resultCell);
-        resultsBody.appendChild(row);
-      });
-    } catch (error) {
-      console.error("Unable to load Firebase results:", error);
+      return date;
     }
-  }
 
-  loadResults();
-</script>
-</body>
+    function ordinal(day) {
+      if (day > 10 && day < 14) return day + "th";
 
+      switch (day % 10) {
+        case 1: return day + "st";
+        case 2: return day + "nd";
+        case 3: return day + "rd";
+        default: return day + "th";
+      }
+    }
+
+    function formatHeading(dateString) {
+      const date = parseDate(dateString);
+
+      if (!date) return dateString;
+
+      const weekday = date.toLocaleDateString("en-US", {
+        weekday: "short"
+      });
+
+      return weekday + ". " + ordinal(date.getDate());
+    }
+
+    function formatLongDate(dateString) {
+      const date = parseDate(dateString);
+
+      if (!date) return dateString;
+
+      return date.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric"
+      });
+    }
+
+    function addCell(row, className, text) {
+      const cell = document.createElement("td");
+      cell.className = className;
+      cell.textContent = text;
+      row.appendChild(cell);
+      return cell;
+    }
+
+    async function loadResults() {
+      try {
+        const snapshot = await getDocs(
+          query(
+            collection(db, "results"),
+            orderBy("date", "desc")
+          )
+        );
+
+        // Keep the original demo table if Firebase has no results.
+        if (snapshot.empty) return;
+
+        const records = [];
+        const uniqueDates = new Set();
+
+        snapshot.forEach((documentSnapshot) => {
+          const data = documentSnapshot.data();
+
+          if (
+            !data.market ||
+            typeof data.date !== "string" ||
+            data.result == null ||
+            !parseDate(data.date)
+          ) {
+            return;
+          }
+
+          const marketName = String(data.market).trim().toUpperCase();
+
+          if (!markets.some((market) => market.name === marketName)) {
+            return;
+          }
+
+          records.push({
+            market: marketName,
+            date: data.date,
+            result: String(data.result)
+          });
+
+          uniqueDates.add(data.date);
+        });
+
+        if (records.length === 0) return;
+
+        // Get the latest two distinct dates present in the database.
+        const dates = Array.from(uniqueDates)
+          .sort((a, b) => b.localeCompare(a))
+          .slice(0, 2);
+
+        if (dates.length === 0) return;
+
+        const latestResults = new Map();
+
+        // For duplicate market/date entries, use the first encountered.
+        records.forEach((record) => {
+          const key = record.market + "|" + record.date;
+
+          if (!latestResults.has(key)) {
+            latestResults.set(key, record.result);
+          }
+        });
+
+        const firstDate = dates[0];
+        const secondDate = dates[1] || null;
+
+        document.getElementById("dayOneHeading").textContent =
+          formatHeading(secondDate || firstDate);
+
+        document.getElementById("dayTwoHeading").textContent =
+          secondDate ? formatHeading(firstDate) : "--";
+
+        document.getElementById("resultTitle").textContent =
+          secondDate
+            ? "Published Results of " +
+              formatLongDate(firstDate) + " & " +
+              formatLongDate(secondDate)
+            : "Published Results of " + formatLongDate(firstDate);
+
+        document.getElementById("updatedText").textContent =
+          "Updated: " + new Date().toLocaleString("en-IN", {
+            dateStyle: "medium",
+            timeStyle: "short",
+            timeZone: "Asia/Kolkata"
+          }) + " IST";
+
+        const fragment = document.createDocumentFragment();
+
+        markets.forEach((market) => {
+          const row = document.createElement("tr");
+          const infoCell = document.createElement("td");
+          const name = document.createElement("div");
+          const meta = document.createElement("div");
+          const time = document.createElement("span");
+          const link = document.createElement("a");
+
+          name.className = "market-name";
+          name.textContent = market.name;
+
+          meta.className = "market-info";
+          time.textContent = "at " + market.time;
+
+          link.className = "record-link";
+          link.href = "chart.html";
+          link.textContent = "Record Chart";
+
+          meta.append(time, link);
+          infoCell.append(name, meta);
+          row.appendChild(infoCell);
+
+          // Left column is the older of the two dates.
+          addCell(
+            row,
+            "number",
+            secondDate
+              ? latestResults.get(market.name + "|" + secondDate) || "--"
+              : "--"
+          );
+
+          // Right column is the newest date.
+          addCell(
+            row,
+            "number",
+            latestResults.get(market.name + "|" + firstDate) || "--"
+          );
+
+          fragment.appendChild(row);
+        });
+
+        resultsBody.replaceChildren(fragment);
+
+      } catch (error) {
+        // Preserve the original table if the database cannot be read.
+        console.error("Firebase results could not be loaded:", error);
+      }
+    }
+
+    loadResults();
+  </script>
 </body>
 </html>
