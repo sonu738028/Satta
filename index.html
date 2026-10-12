@@ -408,5 +408,104 @@
       }
     );
   </script>
+  
+<script type="module">
+  import { initializeApp, getApp, getApps } from
+    "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
+
+  import {
+    getFirestore,
+    collection,
+    getDocs,
+    query,
+    orderBy
+  } from
+    "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBzbbDq388GcoGyFVE-EmZk3flKgT13tZw",
+    authDomain: "satta-result-4a7a5.firebaseapp.com",
+    projectId: "satta-result-4a7a5",
+    storageBucket: "satta-result-4a7a5.firebasestorage.app",
+    messagingSenderId: "264282820868",
+    appId: "1:264282820868:web:c39a794e65c5be0e7c0051"
+  };
+
+  const app = getApps().length
+    ? getApp()
+    : initializeApp(firebaseConfig);
+
+  const db = getFirestore(app);
+  const resultsBody = document.getElementById("resultsBody");
+
+  async function loadResults() {
+    try {
+      const snapshot = await getDocs(
+        query(collection(db, "results"), orderBy("date", "desc"))
+      );
+
+      if (snapshot.empty || !resultsBody) return;
+
+      const latestByMarket = new Map();
+
+      snapshot.forEach((item) => {
+        const data = item.data();
+
+        if (!data.market || !data.date || data.result == null) return;
+
+        if (!latestByMarket.has(data.market)) {
+          latestByMarket.set(data.market, data);
+        }
+      });
+
+      const times = {
+        "DESAWAR": "05:00 AM",
+        "SHRI GANESH": "04:30 PM",
+        "FARIDABAD": "06:00 PM",
+        "GHAZIABAD": "09:55 PM"
+      };
+
+      resultsBody.replaceChildren();
+
+      latestByMarket.forEach((data, market) => {
+        const row = document.createElement("tr");
+        const infoCell = document.createElement("td");
+        const name = document.createElement("div");
+        const meta = document.createElement("div");
+        const time = document.createElement("span");
+        const link = document.createElement("a");
+        const dateCell = document.createElement("td");
+        const resultCell = document.createElement("td");
+
+        name.className = "market-name";
+        name.textContent = market;
+
+        meta.className = "market-info";
+        time.textContent = "at " + (times[market] || "--");
+        link.className = "record-link";
+        link.href = "chart.html";
+        link.textContent = "Record Chart";
+
+        meta.append(time, link);
+        infoCell.append(name, meta);
+
+        dateCell.className = "number";
+        dateCell.textContent = data.result;
+
+        resultCell.className = "number";
+        resultCell.textContent = data.date;
+
+        row.append(infoCell, dateCell, resultCell);
+        resultsBody.appendChild(row);
+      });
+    } catch (error) {
+      console.error("Unable to load Firebase results:", error);
+    }
+  }
+
+  loadResults();
+</script>
+</body>
+
 </body>
 </html>
