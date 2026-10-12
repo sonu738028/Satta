@@ -1,9 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f1f1f1">
   <title>Admin Dashboard</title>
 
   <style>
@@ -65,6 +65,7 @@
       cursor: pointer;
     }
 
+    button:disabled { opacity: 0.6; cursor: wait; }
     button.danger { background: #d94848; }
     button.secondary { background: #444; }
 
@@ -107,13 +108,14 @@
 
     <form id="loginForm">
       <label for="email">Admin Email</label>
-      <input id="email" type="email" autocomplete="username" required>
+      <input id="email" type="email"
+        autocomplete="username" required>
 
       <label for="password">Password</label>
       <input id="password" type="password"
         autocomplete="current-password" required>
 
-      <button type="submit">Login</button>
+      <button id="loginButton" type="submit">Login</button>
     </form>
 
     <p class="message" id="loginMessage" role="status"></p>
@@ -125,10 +127,10 @@
     <form id="resultForm">
       <label for="market">Market</label>
       <select id="market" required>
-        <option>DESAWAR</option>
-        <option>SHRI GANESH</option>
-        <option>FARIDABAD</option>
-        <option>GHAZIABAD</option>
+        <option value="DESAWAR">DESAWAR</option>
+        <option value="SHRI GANESH">SHRI GANESH</option>
+        <option value="FARIDABAD">FARIDABAD</option>
+        <option value="GHAZIABAD">GHAZIABAD</option>
       </select>
 
       <label for="date">Result Date</label>
@@ -136,10 +138,15 @@
 
       <label for="result">Result Number</label>
       <input id="result" type="text"
-        inputmode="numeric" pattern="[0-9]{1,3}"
-        maxlength="3" required>
+        inputmode="numeric"
+        pattern="[0-9]{1,3}"
+        maxlength="3"
+        placeholder="Enter result"
+        required>
 
-      <button type="submit">Save to Firebase</button>
+      <button id="saveButton" type="submit">
+        Save to Firebase
+      </button>
     </form>
 
     <p class="message" id="saveMessage" role="status"></p>
@@ -172,7 +179,9 @@
     deleteDoc,
     doc,
     query,
-    orderBy
+    orderBy,
+    where,
+    limit
   } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -184,6 +193,9 @@
     appId: "1:264282820868:web:c39a794e65c5be0e7c0051"
   };
 
+  // Replace this with the SAME UID used in your Firestore Rules.
+  const ADMIN_UID = "Kt6KdqqXBhRMtJBt33IGFjltc0C3";
+
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
@@ -193,31 +205,60 @@
   const loginMessage = document.getElementById("loginMessage");
   const saveMessage = document.getElementById("saveMessage");
   const resultsList = document.getElementById("resultsList");
+  const loginButton = document.getElementById("loginButton");
+  const saveButton = document.getElementById("saveButton");
 
-  document.getElementById("date").value =
-    new Date().toISOString().slice(0, 10);
+  // Local date, without UTC date shifting.
+  function getLocalDate() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  document.getElementById("date").value = getLocalDate();
+
+  function isAdmin(user) {
+    return Boolean(
+      user &&
+      ADMIN_UID !== "Kt6KdqqXBhRMtJBt33IGFjltc0C3" &&
+      user.uid === ADMIN_UID
+    );
+  }
 
   document.getElementById("loginForm").addEventListener(
     "submit", async (event) => {
       event.preventDefault();
+      loginButton.disabled = true;
       loginMessage.textContent = "Signing in...";
 
       try {
-        await signInWithEmailAndPassword(
+        const credential = await signInWithEmailAndPassword(
           auth,
           document.getElementById("email").value.trim(),
           document.getElementById("password").value
         );
-        loginMessage.textContent = "";
+
+        if (!isAdmin(credential.user)) {
+          await signOut(auth);
+          loginMessage.textContent =
+            "Access denied. This account is not the configured Admin.";
+        } else {
+          loginMessage.textContent = "";
+        }
       } catch (error) {
+        console.error("Login error:", error);
         loginMessage.textContent =
-          "Login failed. Check your email, password and Firebase settings.";
+          "Login failed. Check your credentials and Firebase Authentication settings.";
+      } finally {
+        loginButton.disabled = false;
       }
     }
   );
 
   onAuthStateChanged(auth, async (user) => {
-    if (user) {
+    if (user && isAdmin(user)) {
       loginPanel.classList.add("hidden");
       dashboard.classList.remove("hidden");
       await loadResults();
@@ -233,37 +274,77 @@
       event.preventDefault();
 
       const user = auth.currentUser;
-      if (!user) return;
 
-      const result = document.getElementById("result").value.trim();
-
-      if (!/^[0-9]{1,3}$/.test(result)) {
-        saveMessage.textContent = "Enter a valid result number.";
+      if (!isAdmin(user)) {
+        saveMessage.textContent = "Admin access required.";
         return;
       }
 
+      const market = document.getElementById("market").value;
+      const date = document.getElementById("date").value;
+      const result = document.getElementById("result").value.trim();
+
+      if (!date || !/^[0-9]{1,3}$/.test(result)) {
+        saveMessage.textContent =
+          "Enter a valid date and a result containing 1 to 3 digits.";
+        return;
+      }
+
+      saveButton.disabled = true;
       saveMessage.textContent = "Saving...";
 
       try {
-        await addDoc(collection(db, "results"), {
-          market: document.getElementById("market").value,
-          date: document.getElementById("date").value,
-          result: result,
-          createdAt: new Date().toISOString()
-        });
+        const resultsRef = collection(db, "results");
 
-        saveMessage.textContent = "Result saved successfully.";
+        // Find an existing record for this market and date.
+        const existingQuery = query(
+          resultsRef,
+          where("market", "==", market),
+          where("date", "==", date),
+          limit(1)
+        );
+
+        const existing = await getDocs(existingQuery);
+
+        const record = {
+          market,
+          date,
+          result,
+          createdAt: new Date().toISOString(),
+          updatedBy: user.uid
+        };
+
+        if (existing.empty) {
+          await addDoc(resultsRef, record);
+          saveMessage.textContent = "Result saved successfully.";
+        } else {
+          // Update the existing record instead of adding a duplicate.
+          const existingDoc = existing.docs[0];
+          const { setDoc } = await import(
+            "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js"
+          );
+
+          await setDoc(doc(db, "results", existingDoc.id), record);
+          saveMessage.textContent =
+            "This market's result for that date has been updated.";
+        }
+
         document.getElementById("result").value = "";
         await loadResults();
       } catch (error) {
+        console.error("Save error:", error);
         saveMessage.textContent =
-          "Could not save. Verify your Admin UID and Firestore Rules.";
+          "Save failed. Check your Admin UID, Firestore Rules and internet connection.";
+      } finally {
+        saveButton.disabled = false;
       }
     }
   );
 
   async function loadResults() {
-    resultsList.textContent = "Loading...";
+    if (!isAdmin(auth.currentUser)) return;
+
+    resultsList.textContent = "Loading results...";
 
     try {
       const q = query(
@@ -285,10 +366,11 @@
         row.className = "entry";
 
         const title = document.createElement("strong");
-        title.textContent = data.market + " — " + data.result;
+        title.textContent =
+          `${data.market || "Unknown market"} — ${data.result ?? "--"}`;
 
         const date = document.createElement("small");
-        date.textContent = data.date;
+        date.textContent = data.date || "No date";
 
         const remove = document.createElement("button");
         remove.className = "danger";
@@ -296,14 +378,23 @@
         remove.type = "button";
 
         remove.addEventListener("click", async () => {
-          if (!auth.currentUser) return;
-          if (!confirm("Delete this result?")) return;
+          if (!isAdmin(auth.currentUser)) {
+            alert("Admin access required.");
+            return;
+          }
+
+          if (!confirm("Delete this result permanently?")) return;
+
+          remove.disabled = true;
 
           try {
             await deleteDoc(doc(db, "results", item.id));
+            saveMessage.textContent = "Result deleted.";
             await loadResults();
           } catch (error) {
-            alert("Delete failed. Check permissions.");
+            console.error("Delete error:", error);
+            alert("Delete failed. Check your Firestore Rules.");
+            remove.disabled = false;
           }
         });
 
@@ -311,6 +402,7 @@
         resultsList.appendChild(row);
       });
     } catch (error) {
+      console.error("Load error:", error);
       resultsList.textContent =
         "Could not load results. Check Firestore Rules and connection.";
     }
@@ -324,4 +416,3 @@
 </script>
 </body>
 </html>
-
