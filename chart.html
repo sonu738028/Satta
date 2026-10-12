@@ -8,9 +8,7 @@
   <title>Monthly Record Chart</title>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -31,10 +29,7 @@
       margin: 0 0 8px;
     }
 
-    header p {
-      margin: 0;
-      font-size: 15px;
-    }
+    header p { margin: 0; font-size: 15px; }
 
     .container {
       max-width: 1000px;
@@ -65,9 +60,7 @@
       background: white;
     }
 
-    select {
-      flex: 1;
-    }
+    select { flex: 1; }
 
     button {
       background: #ffc400;
@@ -76,6 +69,8 @@
       font-weight: bold;
       cursor: pointer;
     }
+
+    button:disabled { opacity: 0.6; cursor: wait; }
 
     .chart-title {
       background: #3b3b3b;
@@ -86,10 +81,14 @@
       line-height: 1.4;
     }
 
-    .table-wrap {
-      overflow-x: auto;
+    .status {
+      padding: 10px;
       background: white;
+      color: #555;
+      font-size: 14px;
     }
+
+    .table-wrap { overflow-x: auto; background: white; }
 
     table {
       border-collapse: collapse;
@@ -129,14 +128,8 @@
     }
 
     @media (max-width: 420px) {
-      .filters {
-        gap: 6px;
-      }
-
-      select, button {
-        padding: 10px 7px;
-        font-size: 14px;
-      }
+      .filters { gap: 6px; }
+      select, button { padding: 10px 7px; font-size: 14px; }
     }
   </style>
 </head>
@@ -160,25 +153,18 @@
         <option value="5">June</option>
         <option value="6">July</option>
         <option value="7">August</option>
-        <option value="8" selected>September</option>
+        <option value="8">September</option>
         <option value="9">October</option>
         <option value="10">November</option>
         <option value="11">December</option>
       </select>
 
-      <select id="year" aria-label="Select year">
-        <option>2024</option>
-        <option>2025</option>
-        <option selected>2026</option>
-        <option>2027</option>
-      </select>
-
+      <select id="year" aria-label="Select year"></select>
       <button id="showChart" type="button">Show</button>
     </div>
 
-    <div class="chart-title" id="chartTitle">
-      September 2026 Monthly Chart
-    </div>
+    <div class="chart-title" id="chartTitle"></div>
+    <div class="status" id="status" role="status">Loading results...</div>
 
     <div class="table-wrap">
       <table>
@@ -196,24 +182,83 @@
     </div>
 
     <div class="note">
-      <strong>Note:</strong> This is a demonstration chart.
-      The table does not contain verified historical results.
-      Replace the blank values with data you are authorized
-      to publish.
+      <strong>Note:</strong> Results are shown from the connected database.
+      Dates without saved results display "--". Please verify information
+      before publishing it.
     </div>
   </main>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from
+      "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
+    import {
+      getFirestore, collection, getDocs, query, orderBy
+    } from
+      "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBzbbDq388GcoGyFVE-EmZk3flKgT13tZw",
+      authDomain: "satta-result-4a7a5.firebaseapp.com",
+      projectId: "satta-result-4a7a5",
+      storageBucket: "satta-result-4a7a5.firebasestorage.app",
+      messagingSenderId: "264282820868",
+      appId: "1:264282820868:web:c39a794e65c5be0e7c0051"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
     const monthSelect = document.getElementById("month");
     const yearSelect = document.getElementById("year");
     const chartBody = document.getElementById("chartBody");
     const chartTitle = document.getElementById("chartTitle");
+    const status = document.getElementById("status");
+    const showButton = document.getElementById("showChart");
 
     const monthNames = [
       "January", "February", "March", "April",
       "May", "June", "July", "August",
       "September", "October", "November", "December"
     ];
+
+    const currentYear = new Date().getFullYear();
+
+    for (let year = currentYear - 5; year <= currentYear + 2; year++) {
+      const option = document.createElement("option");
+      option.value = year;
+      option.textContent = year;
+      if (year === currentYear) option.selected = true;
+      yearSelect.appendChild(option);
+    }
+
+    monthSelect.value = String(new Date().getMonth());
+
+    let savedResults = [];
+
+    function normalizeMarket(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function getResultForMarket(record, marketName) {
+      // Supports the field names used by the current admin form.
+      if (normalizeMarket(record.market) === normalizeMarket(marketName)) {
+        return record.result;
+      }
+
+      // Also supports a document containing separate market fields.
+      const directValue = Object.entries(record).find(
+        ([key]) => normalizeMarket(key) === normalizeMarket(marketName)
+      );
+
+      return directValue ? directValue[1] : "--";
+    }
+
+    function formatResult(value) {
+      if (value === undefined || value === null || value === "") {
+        return "--";
+      }
+      return String(value);
+    }
 
     function renderChart() {
       const month = Number(monthSelect.value);
@@ -223,35 +268,101 @@
       chartTitle.textContent =
         monthNames[month] + " " + year + " Monthly Chart";
 
-      chartBody.innerHTML = "";
+      chartBody.replaceChildren();
+
+      const monthlyRecords = savedResults.filter(record => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(record.date || ""))) {
+          return false;
+        }
+
+        const [recordYear, recordMonth] = record.date.split("-").map(Number);
+        return recordYear === year && recordMonth === month + 1;
+      });
+
+      const recordsByDate = new Map();
+
+      monthlyRecords.forEach(record => {
+        // If multiple records exist for the same date and market,
+        // the latest record returned by the date-sorted query wins.
+        const key = record.date;
+        if (!recordsByDate.has(key)) recordsByDate.set(key, []);
+        recordsByDate.get(key).push(record);
+      });
 
       for (let day = 1; day <= days; day++) {
-        const row = document.createElement("tr");
+        const date = [
+          year,
+          String(month + 1).padStart(2, "0"),
+          String(day).padStart(2, "0")
+        ].join("-");
 
-        const values = [
-          String(day).padStart(2, "0"),
-          "--",
-          "--",
-          "--",
-          "--"
+        const row = document.createElement("tr");
+        const dateCell = document.createElement("td");
+        dateCell.textContent = String(day).padStart(2, "0");
+        row.appendChild(dateCell);
+
+        const records = recordsByDate.get(date) || [];
+        const marketNames = [
+          "Desawar",
+          "Shri Ganesh",
+          "Faridabad",
+          "Ghaziabad"
         ];
 
-        values.forEach(function(value) {
+        marketNames.forEach(marketName => {
           const cell = document.createElement("td");
-          cell.textContent = value;
+          const matchingRecord = records.find(
+            record => normalizeMarket(record.market) ===
+              normalizeMarket(marketName)
+          );
+
+          cell.textContent = matchingRecord
+            ? formatResult(matchingRecord.result)
+            : "--";
+
           row.appendChild(cell);
         });
 
         chartBody.appendChild(row);
       }
+
+      status.textContent = monthlyRecords.length
+        ? `Loaded ${monthlyRecords.length} saved record(s) for ${monthNames[month]} ${year}.`
+        : `No saved results found for ${monthNames[month]} ${year}.`;
     }
 
-    document.getElementById("showChart").addEventListener(
-      "click",
-      renderChart
-    );
+    async function loadResults() {
+      showButton.disabled = true;
+      status.textContent = "Loading results from Firebase...";
 
-    renderChart();
+      try {
+        const resultsQuery = query(
+          collection(db, "results"),
+          orderBy("date", "desc")
+        );
+
+        const snapshot = await getDocs(resultsQuery);
+
+        savedResults = snapshot.docs.map(document => ({
+          id: document.id,
+          ...document.data()
+        }));
+
+        renderChart();
+      } catch (error) {
+        console.error("Firebase chart load error:", error);
+        chartBody.replaceChildren();
+        status.textContent =
+          "Could not load Firebase results. Check your connection and Firestore rules, then try again.";
+      } finally {
+        showButton.disabled = false;
+      }
+    }
+
+    showButton.addEventListener("click", renderChart);
+
+    loadResults();
   </script>
 </body>
 </html>
+
