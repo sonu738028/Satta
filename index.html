@@ -1,0 +1,412 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f1f1f1">
+  <title>Gali Satta Result and Monthly Chart</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #f1f1f1;
+      color: #111;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .page {
+      width: 100%;
+      max-width: 1000px;
+      margin: auto;
+      padding: 12px 8px 40px;
+    }
+
+    /* Website Logo */
+    .brand {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+      margin: 10px 0 25px;
+      white-space: nowrap;
+    }
+
+    .crown {
+      font-size: clamp(35px, 8vw, 58px);
+    }
+
+    .brand-name {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(23px, 5.7vw, 47px);
+      font-weight: 900;
+      letter-spacing: -1.5px;
+      color: #080808;
+    }
+
+    .brand-name span {
+      font-size: 65%;
+    }
+
+    /* Introduction */
+    .intro {
+      text-align: center;
+      font-size: clamp(17px, 3.6vw, 24px);
+      line-height: 1.42;
+      margin: 0 auto 18px;
+    }
+
+    /* Disclaimer */
+    .disclaimer {
+      background: #ff5055;
+      color: white;
+      text-align: center;
+      font-size: clamp(17px, 3.7vw, 25px);
+      line-height: 1.55;
+      padding: 15px 9px;
+      margin-bottom: 18px;
+    }
+
+    .disclaimer a {
+      color: #554bb4;
+      text-decoration: none;
+    }
+
+    .extra-text {
+      display: none;
+    }
+
+    .disclaimer.expanded .extra-text {
+      display: inline;
+    }
+
+    /* Updated Date */
+    .updated {
+      text-align: center;
+      color: #4b9b79;
+      font-size: clamp(17px, 3.7vw, 25px);
+      margin: 18px 0 20px;
+    }
+
+    /* Green Result Heading */
+    .result-title {
+      background: #30c69a;
+      color: white;
+      text-align: center;
+      font-size: clamp(20px, 4.3vw, 28px);
+      line-height: 1.42;
+      padding: 8px 7px;
+      margin: 0 6px;
+    }
+
+    /* Results Table */
+    table {
+      width: calc(100% - 12px);
+      margin: 0 6px;
+      border-collapse: collapse;
+      table-layout: fixed;
+      background: white;
+    }
+
+    col.market {
+      width: 63%;
+    }
+
+    col.day {
+      width: 18.5%;
+    }
+
+    thead th {
+      background: #3b3b3b;
+      color: white;
+      font-weight: 400;
+      text-align: left;
+      vertical-align: middle;
+      padding: 8px;
+      font-size: clamp(16px, 3.7vw, 23px);
+      line-height: 1.5;
+    }
+
+    thead th:not(:first-child) {
+      text-align: center;
+    }
+
+    tbody td {
+      background: white;
+      border-bottom: 1px solid #d9d9d9;
+      padding: 13px 8px;
+      vertical-align: middle;
+    }
+
+    .market-name {
+      font-size: clamp(21px, 4.5vw, 28px);
+      font-weight: 700;
+      line-height: 1.25;
+      margin-bottom: 12px;
+    }
+
+    .market-info {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0 10px;
+      color: #555;
+      font-size: clamp(13px, 3.1vw, 18px);
+      line-height: 1.4;
+    }
+
+    .record-link {
+      color: #456fb5;
+      text-decoration: none;
+    }
+
+    .record-link:hover {
+      text-decoration: underline;
+    }
+
+    .number {
+      text-align: center;
+      font-size: clamp(28px, 5.7vw, 39px);
+      font-weight: 500;
+      line-height: 1.1;
+      color: #080808;
+    }
+
+    /* Floating Chat Icon */
+    .chat-bubble {
+      position: fixed;
+      right: 18px;
+      bottom: 94px;
+      width: 68px;
+      height: 58px;
+      border: 5px solid #e5c51c;
+      border-radius: 18px 18px 18px 6px;
+      background: #30c69a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      z-index: 5;
+    }
+
+    .chat-bubble::before {
+      content: "";
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      top: -12px;
+      left: -7px;
+      background: #f51f32;
+      border-radius: 50%;
+    }
+
+    .chat-bubble span {
+      width: 8px;
+      height: 8px;
+      background: #f2d329;
+      border-radius: 50%;
+    }
+
+    /* Refresh Button */
+    .refresh {
+      position: fixed;
+      right: 29px;
+      bottom: 32px;
+      background: #ffc400;
+      color: #e32921;
+      border: none;
+      padding: 15px 17px;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      z-index: 6;
+    }
+
+    .chart-note {
+      margin: 20px 6px 0;
+      padding: 12px;
+      border: 1px solid #ddd;
+      background: white;
+      color: #444;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 360px) {
+      .brand-name {
+        letter-spacing: -1.7px;
+      }
+
+      .crown {
+        font-size: 34px;
+      }
+
+      .refresh {
+        right: 15px;
+        bottom: 25px;
+        font-size: 17px;
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+
+    <header class="brand">
+      <span class="crown">👑</span>
+      <div class="brand-name">
+        SATTA-KING-FAST<span>.com</span>
+      </div>
+    </header>
+
+    <p class="intro">
+      Gali Satta Result And Monthly Satta Chart of September 2026
+      With Combined Chart of Gali, Desawar, Ghaziabad, Faridabad
+      And Shri Ganesh from Satta King Fast, Satta King Result,
+      Satta King Chart, Black Satta King and Satta King 786.
+    </p>
+
+    <section class="disclaimer" id="disclaimer">
+      DISCLAIMER: This website is an independent media portal
+      for informational and journalistic purposes only. As a
+      non-transactional service, we are not affiliated with any
+      entity mentioned. Users are solely responsible for complying
+      with all applicable laws in their jurisdiction.
+
+      <span class="extra-text">
+        This page is a visual demonstration.
+      </span>
+
+      <a href="#" id="readMore">Read More...</a>
+    </section>
+
+    <p class="updated">
+      Updated: September 30, 2026, 20:51:23 IST.
+    </p>
+
+    <section>
+      <div class="result-title">
+        Gali Satta Result of September 30, 2026 &amp;
+        September 29, 2026
+      </div>
+
+      <table>
+        <colgroup>
+          <col class="market">
+          <col class="day">
+          <col class="day">
+        </colgroup>
+
+        <thead>
+          <tr>
+            <th>Regional Offline Draw Results</th>
+            <th>Tue.<br>29th</th>
+            <th>Wed.<br>30th</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr>
+            <td>
+              <div class="market-name">DESAWAR</div>
+              <div class="market-info">
+                <span>at 05:00 AM</span>
+                <a class="record-link" href="#record-chart">
+                  Record Chart
+                </a>
+              </div>
+            </td>
+            <td class="number">43</td>
+            <td class="number">25</td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="market-name">SHRI GANESH</div>
+              <div class="market-info">
+                <span>at 04:30 PM</span>
+                <a class="record-link" href="#record-chart">
+                  Record Chart
+                </a>
+              </div>
+            </td>
+            <td class="number">61</td>
+            <td class="number">--</td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="market-name">FARIDABAD</div>
+              <div class="market-info">
+                <span>at 06:00 PM</span>
+                <a class="record-link" href="#record-chart">
+                  Record Chart
+                </a>
+              </div>
+            </td>
+            <td class="number">90</td>
+            <td class="number">90</td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="market-name">GHAZIABAD</div>
+              <div class="market-info">
+                <span>at 09:55 PM</span>
+                <a class="record-link" href="#record-chart">
+                  Record Chart
+                </a>
+              </div>
+            </td>
+            <td class="number">20</td>
+            <td class="number">--</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="chart-note" id="record-chart">
+        <strong>Record Chart</strong><br>
+        Historical chart demo. Connect a verified data source
+        before publishing updated results.
+      </div>
+    </section>
+  </main>
+
+  <div class="chat-bubble" aria-label="Chat icon">
+    <span></span><span></span><span></span>
+  </div>
+
+  <button class="refresh" id="refresh" type="button">
+    Refresh
+  </button>
+
+  <script>
+    const readMore = document.getElementById("readMore");
+    const disclaimer = document.getElementById("disclaimer");
+
+    readMore.addEventListener("click", function(event) {
+      event.preventDefault();
+
+      disclaimer.classList.toggle("expanded");
+
+      readMore.textContent =
+        disclaimer.classList.contains("expanded")
+          ? "Read Less..."
+          : "Read More...";
+    });
+
+    document.getElementById("refresh").addEventListener(
+      "click",
+      function() {
+        window.location.reload();
+      }
+    );
+  </script>
+</body>
+</html>
