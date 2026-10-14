@@ -26,7 +26,7 @@
     header h1 { margin: 0 0 6px; }
 
     main {
-      max-width: 650px;
+      max-width: 750px;
       margin: 20px auto;
       padding: 0 12px 35px;
     }
@@ -50,6 +50,7 @@
       padding: 12px;
       font-size: 16px;
       margin-bottom: 8px;
+      border-radius: 4px;
     }
 
     input, select {
@@ -65,11 +66,12 @@
       cursor: pointer;
     }
 
-    button:disabled { opacity: 0.6; cursor: wait; }
+    button:disabled { opacity: .6; cursor: wait; }
     button.danger { background: #d94848; }
     button.secondary { background: #444; }
+    button.warning { background: #e8a900; color: #222; }
 
-    .hidden { display: none; }
+    .hidden { display: none !important; }
 
     .message {
       font-size: 14px;
@@ -79,11 +81,27 @@
 
     .entry {
       border-bottom: 1px solid #ddd;
-      padding: 12px 0;
+      padding: 14px 0;
     }
 
-    .entry strong { display: block; margin-bottom: 5px; }
-    .entry small { color: #666; }
+    .entry strong {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .entry small {
+      display: block;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .entry button {
+      width: auto;
+      min-width: 100px;
+      margin: 3px 5px 3px 0;
+      padding: 10px;
+      font-size: 14px;
+    }
 
     .back {
       display: inline-block;
@@ -91,18 +109,27 @@
       color: #456fb5;
       text-decoration: none;
     }
+
+    .status {
+      padding: 10px;
+      background: #f7f7f7;
+      margin: 8px 0;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
   </style>
 </head>
 
 <body>
 <header>
   <h1>Admin Dashboard</h1>
-  <p>Firebase Result Manager</p>
+  <p>Firebase Result & Market Manager</p>
 </header>
 
 <main>
   <a class="back" href="index.html">← Main Website</a>
 
+  <!-- LOGIN -->
   <section class="card" id="loginPanel">
     <h2>Admin Login</h2>
 
@@ -121,40 +148,74 @@
     <p class="message" id="loginMessage" role="status"></p>
   </section>
 
-  <section class="card hidden" id="dashboard">
-    <h2>Add Published Result</h2>
+  <!-- DASHBOARD -->
+  <section id="dashboard" class="hidden">
 
-    <form id="resultForm">
-      <label for="market">Market</label>
-      <select id="market" required>
-        <option value="DESAWAR">DESAWAR</option>
-        <option value="SHRI GANESH">SHRI GANESH</option>
-        <option value="FARIDABAD">FARIDABAD</option>
-        <option value="GHAZIABAD">GHAZIABAD</option>
-      </select>
+    <!-- MARKET MANAGER -->
+    <div class="card">
+      <h2 id="marketFormTitle">Add New Market</h2>
 
-      <label for="date">Result Date</label>
-      <input id="date" type="date" required>
+      <form id="marketForm">
+        <label for="marketName">Market Name</label>
+        <input id="marketName" type="text"
+          maxlength="50" placeholder="e.g. DELHI BAZAR" required>
 
-      <label for="result">Result Number</label>
-      <input id="result" type="text"
-        inputmode="numeric"
-        pattern="[0-9]{1,3}"
-        maxlength="3"
-        placeholder="Enter result"
-        required>
+        <label for="marketTime">Result Time</label>
+        <input id="marketTime" type="time" required>
 
-      <button id="saveButton" type="submit">
-        Save to Firebase
-      </button>
-    </form>
+        <label for="marketOrder">Display Order</label>
+        <input id="marketOrder" type="number"
+          min="1" max="999" value="10" required>
 
-    <p class="message" id="saveMessage" role="status"></p>
+        <button id="marketSaveButton" type="submit">
+          Add Market
+        </button>
 
-    <h2>Saved Results</h2>
-    <div id="resultsList">Loading results...</div>
+        <button id="cancelEditButton"
+          class="secondary hidden" type="button">
+          Cancel Edit
+        </button>
+      </form>
 
-    <button type="button" class="secondary" id="logoutButton">
+      <p class="message" id="marketMessage" role="status"></p>
+
+      <h3>All Markets</h3>
+      <p class="message">
+        Disabled markets will be hidden from the public website
+        after the main page is connected to this collection.
+      </p>
+
+      <div id="marketsList">Loading markets...</div>
+    </div>
+
+    <!-- RESULT MANAGER -->
+    <div class="card">
+      <h2>Add or Update Result</h2>
+
+      <form id="resultForm">
+        <label for="resultMarket">Market</label>
+        <select id="resultMarket" required></select>
+
+        <label for="resultDate">Result Date</label>
+        <input id="resultDate" type="date" required>
+
+        <label for="resultNumber">Result Number</label>
+        <input id="resultNumber" type="text"
+          inputmode="numeric" pattern="[0-9]{1,3}"
+          maxlength="3" placeholder="Enter result" required>
+
+        <button id="resultSaveButton" type="submit">
+          Save Result
+        </button>
+      </form>
+
+      <p class="message" id="resultMessage" role="status"></p>
+
+      <h3>Saved Results</h3>
+      <div id="resultsList">Loading results...</div>
+    </div>
+
+    <button id="logoutButton" class="secondary" type="button">
       Logout
     </button>
   </section>
@@ -169,7 +230,8 @@
     signInWithEmailAndPassword,
     onAuthStateChanged,
     signOut
-  } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
+  } from
+    "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
 
   import {
     getFirestore,
@@ -178,11 +240,13 @@
     getDocs,
     deleteDoc,
     doc,
+    setDoc,
     query,
     orderBy,
     where,
     limit
-  } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+  } from
+    "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBzbbDq388GcoGyFVE-EmZk3flKgT13tZw",
@@ -193,226 +257,529 @@
     appId: "1:264282820868:web:c39a794e65c5be0e7c0051"
   };
 
-  // Replace this with the SAME UID used in your Firestore Rules.
   const ADMIN_UID = "Kt6KdqqXBhRMtJBt33IGFjltc0C3";
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  const loginPanel = document.getElementById("loginPanel");
-  const dashboard = document.getElementById("dashboard");
-  const loginMessage = document.getElementById("loginMessage");
-  const saveMessage = document.getElementById("saveMessage");
-  const resultsList = document.getElementById("resultsList");
-  const loginButton = document.getElementById("loginButton");
-  const saveButton = document.getElementById("saveButton");
+  const $ = id => document.getElementById(id);
 
-  // Local date, without UTC date shifting.
-  function getLocalDate() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
-
-  document.getElementById("date").value = getLocalDate();
+  let markets = [];
+  let editingMarketId = null;
+  let busy = false;
 
   function isAdmin(user) {
-    return Boolean(
-      user &&
-      ADMIN_UID !== "Kt6KdqqXBhRMtJBt33IGFjltc0C3" &&
-      user.uid === ADMIN_UID
+    // FIX: Compare the signed-in user's UID with the configured UID.
+    return Boolean(user && user.uid === ADMIN_UID);
+  }
+
+  function localDate() {
+    const now = new Date();
+    return [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0")
+    ].join("-");
+  }
+
+  $("resultDate").value = localDate();
+
+  function slugify(name) {
+    return name.trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+  }
+
+  function displayTime(time) {
+    if (!time) return "--";
+
+    const [hour, minute] = time.split(":").map(Number);
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const h = hour % 12 || 12;
+
+    return `${String(h).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${suffix}`;
+  }
+
+  function showMessage(id, message) {
+    $(id).textContent = message;
+  }
+
+  function setButtonsDisabled(disabled) {
+    $("marketSaveButton").disabled = disabled;
+    $("resultSaveButton").disabled = disabled;
+  }
+
+  // Create the initial six markets only if the collection is empty.
+  async function seedInitialMarkets() {
+    const snapshot = await getDocs(collection(db, "markets"));
+
+    if (!snapshot.empty) return;
+
+    const initialMarkets = [
+      { name: "SHRI GANESH", time: "18:00", order: 1 },
+      { name: "GHAZIABAD", time: "21:55", order: 2 },
+      { name: "GALI", time: "23:25", order: 3 },
+      { name: "DESAWAR", time: "05:00", order: 4 },
+      { name: "DELHI BAZAR", time: "18:00", order: 5 },
+      { name: "MORADABAD", time: "19:20", order: 6 }
+    ];
+
+    for (const market of initialMarkets) {
+      const id = slugify(market.name);
+
+      await setDoc(doc(db, "markets", id), {
+        ...market,
+        enabled: true,
+        createdAt: new Date().toISOString()
+      });
+    }
+  }
+
+  async function loadMarkets() {
+    showMessage("marketMessage", "Loading markets...");
+
+    const snapshot = await getDocs(collection(db, "markets"));
+
+    markets = snapshot.docs.map(item => ({
+      id: item.id,
+      ...item.data()
+    }));
+
+    markets.sort((a, b) =>
+      (Number(a.order) || 999) - (Number(b.order) || 999) ||
+      String(a.name).localeCompare(String(b.name))
+    );
+
+    renderMarkets();
+    populateResultMarket();
+
+    showMessage(
+      "marketMessage",
+      `${markets.length} market(s) loaded.`
     );
   }
 
-  document.getElementById("loginForm").addEventListener(
-    "submit", async (event) => {
-      event.preventDefault();
-      loginButton.disabled = true;
-      loginMessage.textContent = "Signing in...";
+  function renderMarkets() {
+    const list = $("marketsList");
+    list.replaceChildren();
 
-      try {
-        const credential = await signInWithEmailAndPassword(
-          auth,
-          document.getElementById("email").value.trim(),
-          document.getElementById("password").value
+    if (!markets.length) {
+      list.textContent = "No markets available.";
+      return;
+    }
+
+    markets.forEach(market => {
+      const entry = document.createElement("div");
+      entry.className = "entry";
+
+      const title = document.createElement("strong");
+      title.textContent = market.name || "Unnamed Market";
+
+      const detail = document.createElement("small");
+      detail.textContent =
+        `${displayTime(market.time)} · Order: ${market.order} · ` +
+        (market.enabled ? "Enabled" : "Disabled");
+
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.textContent = "Edit";
+      edit.addEventListener("click", () => startEdit(market));
+
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "warning";
+      toggle.textContent = market.enabled ? "Disable" : "Enable";
+
+      toggle.addEventListener("click", async () => {
+        if (!isAdmin(auth.currentUser)) return;
+
+        try {
+          await setDoc(
+            doc(db, "markets", market.id),
+            {
+              enabled: !market.enabled,
+              updatedAt: new Date().toISOString()
+            },
+            { merge: true }
+          );
+
+          await loadMarkets();
+        } catch (error) {
+          console.error(error);
+          alert("Could not update market. Check Firestore Rules.");
+        }
+      });
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "danger";
+      remove.textContent = "Delete";
+
+      remove.addEventListener("click", async () => {
+        if (!isAdmin(auth.currentUser)) return;
+
+        const confirmed = confirm(
+          `Delete ${market.name} from the market list? Existing results will not be deleted.`
         );
 
-        if (!isAdmin(credential.user)) {
-          await signOut(auth);
-          loginMessage.textContent =
-            "Access denied. This account is not the configured Admin.";
-        } else {
-          loginMessage.textContent = "";
-        }
-      } catch (error) {
-        console.error("Login error:", error);
-        loginMessage.textContent =
-          "Login failed. Check your credentials and Firebase Authentication settings.";
-      } finally {
-        loginButton.disabled = false;
-      }
-    }
-  );
+        if (!confirmed) return;
 
-  onAuthStateChanged(auth, async (user) => {
-    if (user && isAdmin(user)) {
-      loginPanel.classList.add("hidden");
-      dashboard.classList.remove("hidden");
-      await loadResults();
-    } else {
-      dashboard.classList.add("hidden");
-      loginPanel.classList.remove("hidden");
-      resultsList.textContent = "";
+        try {
+          await deleteDoc(doc(db, "markets", market.id));
+
+          if (editingMarketId === market.id) resetMarketForm();
+
+          await loadMarkets();
+        } catch (error) {
+          console.error(error);
+          alert("Delete failed. Check Firestore Rules.");
+        }
+      });
+
+      entry.append(title, detail, edit, toggle, remove);
+      list.appendChild(entry);
+    });
+  }
+
+  function populateResultMarket() {
+    const select = $("resultMarket");
+    const previous = select.value;
+
+    select.replaceChildren();
+
+    const enabledMarkets = markets.filter(market =>
+      market.enabled !== false
+    );
+
+    enabledMarkets.forEach(market => {
+      const option = document.createElement("option");
+      option.value = market.name;
+      option.textContent = market.name;
+      select.appendChild(option);
+    });
+
+    if (enabledMarkets.some(market => market.name === previous)) {
+      select.value = previous;
+    }
+
+    select.disabled = enabledMarkets.length === 0;
+
+    if (!enabledMarkets.length) {
+      const option = document.createElement("option");
+      option.textContent = "Add or enable a market first";
+      option.value = "";
+      select.appendChild(option);
+    }
+  }
+
+  function startEdit(market) {
+    editingMarketId = market.id;
+
+    $("marketFormTitle").textContent = "Edit Market";
+    $("marketName").value = market.name || "";
+    $("marketTime").value = market.time || "18:00";
+    $("marketOrder").value = market.order || 1;
+
+    $("marketSaveButton").textContent = "Save Market Changes";
+    $("cancelEditButton").classList.remove("hidden");
+
+    $("marketFormTitle").scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  }
+
+  function resetMarketForm() {
+    editingMarketId = null;
+    $("marketForm").reset();
+
+    $("marketOrder").value = Math.max(1, markets.length + 1);
+    $("marketFormTitle").textContent = "Add New Market";
+    $("marketSaveButton").textContent = "Add Market";
+    $("cancelEditButton").classList.add("hidden");
+  }
+
+  $("cancelEditButton").addEventListener("click", resetMarketForm);
+
+  $("marketForm").addEventListener("submit", async event => {
+    event.preventDefault();
+
+    if (!isAdmin(auth.currentUser)) {
+      showMessage("marketMessage", "Admin access required.");
+      return;
+    }
+
+    const name = $("marketName").value.trim().toUpperCase();
+    const time = $("marketTime").value;
+    const order = Number($("marketOrder").value);
+
+    if (!name || !time || !Number.isInteger(order) || order < 1) {
+      showMessage("marketMessage", "Enter a valid name, time and order.");
+      return;
+    }
+
+    const duplicate = markets.some(market =>
+      market.name.trim().toUpperCase() === name &&
+      market.id !== editingMarketId
+    );
+
+    if (duplicate) {
+      showMessage("marketMessage", "This market name already exists.");
+      return;
+    }
+
+    $("marketSaveButton").disabled = true;
+
+    try {
+      if (editingMarketId) {
+        const existing = markets.find(m => m.id === editingMarketId);
+
+        await setDoc(
+          doc(db, "markets", editingMarketId),
+          {
+            name,
+            time,
+            order,
+            enabled: existing?.enabled !== false,
+            updatedAt: new Date().toISOString()
+          },
+          { merge: true }
+        );
+
+        showMessage("marketMessage", "Market updated successfully.");
+      } else {
+        const id = slugify(name);
+
+        if (!id) {
+          showMessage("marketMessage", "Please enter a valid market name.");
+          return;
+        }
+
+        await setDoc(doc(db, "markets", id), {
+          name,
+          time,
+          order,
+          enabled: true,
+          createdAt: new Date().toISOString()
+        });
+
+        showMessage("marketMessage", "Market added successfully.");
+      }
+
+      resetMarketForm();
+      await loadMarkets();
+
+    } catch (error) {
+      console.error("Market save error:", error);
+      showMessage(
+        "marketMessage",
+        "Could not save market. Check your internet and Firestore Rules."
+      );
+    } finally {
+      $("marketSaveButton").disabled = false;
     }
   });
 
-  document.getElementById("resultForm").addEventListener(
-    "submit", async (event) => {
-      event.preventDefault();
+  // Result management
+  $("resultForm").addEventListener("submit", async event => {
+    event.preventDefault();
 
-      const user = auth.currentUser;
+    if (!isAdmin(auth.currentUser)) {
+      showMessage("resultMessage", "Admin access required.");
+      return;
+    }
 
-      if (!isAdmin(user)) {
-        saveMessage.textContent = "Admin access required.";
-        return;
-      }
+    const market = $("resultMarket").value;
+    const date = $("resultDate").value;
+    const result = $("resultNumber").value.trim();
 
-      const market = document.getElementById("market").value;
-      const date = document.getElementById("date").value;
-      const result = document.getElementById("result").value.trim();
+    if (!market || !date || !/^[0-9]{1,3}$/.test(result)) {
+      showMessage("resultMessage", "Enter a valid market, date and result.");
+      return;
+    }
 
-      if (!date || !/^[0-9]{1,3}$/.test(result)) {
-        saveMessage.textContent =
-          "Enter a valid date and a result containing 1 to 3 digits.";
-        return;
-      }
+    $("resultSaveButton").disabled = true;
 
-      saveButton.disabled = true;
-      saveMessage.textContent = "Saving...";
+    try {
+      const resultsRef = collection(db, "results");
 
-      try {
-        const resultsRef = collection(db, "results");
+      const existingQuery = query(
+        resultsRef,
+        where("market", "==", market),
+        where("date", "==", date),
+        limit(1)
+      );
 
-        // Find an existing record for this market and date.
-        const existingQuery = query(
-          resultsRef,
-          where("market", "==", market),
-          where("date", "==", date),
-          limit(1)
+      const existing = await getDocs(existingQuery);
+
+      const record = {
+        market,
+        date,
+        result,
+        createdAt: new Date().toISOString(),
+        updatedBy: auth.currentUser.uid
+      };
+
+      if (existing.empty) {
+        await addDoc(resultsRef, record);
+        showMessage("resultMessage", "Result saved successfully.");
+      } else {
+        await setDoc(
+          doc(db, "results", existing.docs[0].id),
+          record,
+          { merge: true }
         );
 
-        const existing = await getDocs(existingQuery);
-
-        const record = {
-          market,
-          date,
-          result,
-          createdAt: new Date().toISOString(),
-          updatedBy: user.uid
-        };
-
-        if (existing.empty) {
-          await addDoc(resultsRef, record);
-          saveMessage.textContent = "Result saved successfully.";
-        } else {
-          // Update the existing record instead of adding a duplicate.
-          const existingDoc = existing.docs[0];
-          const { setDoc } = await import(
-            "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js"
-          );
-
-          await setDoc(doc(db, "results", existingDoc.id), record);
-          saveMessage.textContent =
-            "This market's result for that date has been updated.";
-        }
-
-        document.getElementById("result").value = "";
-        await loadResults();
-      } catch (error) {
-        console.error("Save error:", error);
-        saveMessage.textContent =
-          "Save failed. Check your Admin UID, Firestore Rules and internet connection.";
-      } finally {
-        saveButton.disabled = false;
+        showMessage("resultMessage", "Existing result updated.");
       }
+
+      $("resultNumber").value = "";
+      await loadResults();
+
+    } catch (error) {
+      console.error("Result save error:", error);
+      showMessage(
+        "resultMessage",
+        "Save failed. Check Firestore Rules and your connection."
+      );
+    } finally {
+      $("resultSaveButton").disabled = false;
     }
-  );
+  });
 
   async function loadResults() {
     if (!isAdmin(auth.currentUser)) return;
 
-    resultsList.textContent = "Loading results...";
+    const list = $("resultsList");
+    list.textContent = "Loading results...";
 
     try {
-      const q = query(
-        collection(db, "results"),
-        orderBy("date", "desc")
+      const snapshot = await getDocs(
+        query(collection(db, "results"), orderBy("date", "desc"))
       );
 
-      const snapshot = await getDocs(q);
-      resultsList.replaceChildren();
+      list.replaceChildren();
 
       if (snapshot.empty) {
-        resultsList.textContent = "No results saved yet.";
+        list.textContent = "No results saved yet.";
         return;
       }
 
-      snapshot.forEach((item) => {
+      snapshot.forEach(item => {
         const data = item.data();
-        const row = document.createElement("div");
-        row.className = "entry";
+
+        const entry = document.createElement("div");
+        entry.className = "entry";
 
         const title = document.createElement("strong");
         title.textContent =
-          `${data.market || "Unknown market"} — ${data.result ?? "--"}`;
+          `${data.market || "Unknown Market"} — ${data.result ?? "--"}`;
 
         const date = document.createElement("small");
         date.textContent = data.date || "No date";
 
         const remove = document.createElement("button");
+        remove.type = "button";
         remove.className = "danger";
         remove.textContent = "Delete";
-        remove.type = "button";
 
         remove.addEventListener("click", async () => {
-          if (!isAdmin(auth.currentUser)) {
-            alert("Admin access required.");
-            return;
-          }
-
+          if (!isAdmin(auth.currentUser)) return;
           if (!confirm("Delete this result permanently?")) return;
 
           remove.disabled = true;
 
           try {
             await deleteDoc(doc(db, "results", item.id));
-            saveMessage.textContent = "Result deleted.";
+            showMessage("resultMessage", "Result deleted.");
             await loadResults();
           } catch (error) {
-            console.error("Delete error:", error);
-            alert("Delete failed. Check your Firestore Rules.");
+            console.error(error);
+            alert("Delete failed. Check Firestore Rules.");
             remove.disabled = false;
           }
         });
 
-        row.append(title, date, remove);
-        resultsList.appendChild(row);
+        entry.append(title, date, remove);
+        list.appendChild(entry);
       });
+
     } catch (error) {
-      console.error("Load error:", error);
-      resultsList.textContent =
+      console.error("Load results error:", error);
+      list.textContent =
         "Could not load results. Check Firestore Rules and connection.";
     }
   }
 
-  document.getElementById("logoutButton").addEventListener(
-    "click", async () => {
-      await signOut(auth);
+  $("loginForm").addEventListener("submit", async event => {
+    event.preventDefault();
+
+    $("loginButton").disabled = true;
+    showMessage("loginMessage", "Signing in...");
+
+    try {
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        $("email").value.trim(),
+        $("password").value
+      );
+
+      if (!isAdmin(credential.user)) {
+        await signOut(auth);
+        showMessage(
+          "loginMessage",
+          "Access denied. This account is not the configured Admin."
+        );
+      } else {
+        showMessage("loginMessage", "");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      showMessage(
+        "loginMessage",
+        "Login failed. Check email, password and Firebase settings."
+      );
+    } finally {
+      $("loginButton").disabled = false;
     }
-  );
+  });
+
+  onAuthStateChanged(auth, async user => {
+    if (!user) {
+      $("dashboard").classList.add("hidden");
+      $("loginPanel").classList.remove("hidden");
+      return;
+    }
+
+    if (!isAdmin(user)) {
+      await signOut(auth);
+      $("dashboard").classList.add("hidden");
+      $("loginPanel").classList.remove("hidden");
+      showMessage("loginMessage", "Access denied for this account.");
+      return;
+    }
+
+    $("loginPanel").classList.add("hidden");
+    $("dashboard").classList.remove("hidden");
+
+    try {
+      await seedInitialMarkets();
+      await loadMarkets();
+      await loadResults();
+    } catch (error) {
+      console.error("Dashboard initialization error:", error);
+      showMessage(
+        "marketMessage",
+        "Dashboard could not load. Check Firestore Rules and connection."
+      );
+    }
+  });
+
+  $("logoutButton").addEventListener("click", async () => {
+    await signOut(auth);
+  });
 </script>
 </body>
 </html>
